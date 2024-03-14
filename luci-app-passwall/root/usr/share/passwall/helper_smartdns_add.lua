@@ -174,14 +174,21 @@ if not fs.access(CACHE_DNS_FILE) then
 	sys.call(string.format('echo "proxy-server socks5://%s -name %s" >> %s', REMOTE_PROXY_SERVER, proxy_server_name, CACHE_DNS_FILE))
 	if true then
 		string.gsub(TUN_DNS, '[^' .. "|" .. ']+', function(w)
-			local server_dns = w
-			local server_param = string.format("server %s -group %s -proxy %s", "%s", REMOTE_GROUP, proxy_server_name)
 
+			local isHTTPS = w:find("https://")
+			local server_dns = w
+			local server_param
+
+			if isHTTPS then
+			    server_param = string.format("server-https %s -group %s -proxy %s", "%s", REMOTE_GROUP, proxy_server_name)
+			else
+			    server_param = string.format("server %s -group %s -proxy %s", "%s", REMOTE_GROUP, proxy_server_name)
+			end
+				
 			if REMOTE_EXCLUDE == "1" then
 				server_param = server_param .. " -exclude-default-group"
 			end
-
-			local isHTTPS = w:find("https://")
+				
 			if isHTTPS and isHTTPS == 1 then
 				local http_host = nil
 				local url = w
