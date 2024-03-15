@@ -37,10 +37,15 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Configure
+    - name: Configure .config file
       run: |
         cd immortalwrt
-        cp ../.config .
+        # Basic .config setup, adjust according to your needs
+        echo "CONFIG_TARGET_x86=y" > .config
+        echo "CONFIG_TARGET_x86_64=y" >> .config
+        # Include additional configuration settings here using echo
+        # For example, to enable luci-app-passwall, uncomment the next line
+        # echo "CONFIG_PACKAGE_luci-app-passwall=y" >> .config
         make defconfig
 
     - name: Compile
