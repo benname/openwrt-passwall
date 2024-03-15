@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build and Release OpenWrt IPK for x86
 
 on:
   push:
@@ -6,18 +6,47 @@ on:
       - luci-smartdns-dev
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
+    - name: Checkout source code
       uses: actions/checkout@v2
       with:
         repository: benname/openwrt-passwall
         submodules: true
         ref: luci-smartdns-dev
 
-    # Install dependencies, Download and prepare ImmortalWRT, Configure, Compile 步骤省略，与之前相同
+    - name: Setup environment
+      run: |
+        sudo apt update -y
+        sudo apt full-upgrade -y
+        sudo apt install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+          bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
+          g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
+          libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5 \
+          libncursesw5-dev libpython3-dev libreadline-dev libssl-dev libtool lld llvm lrzsz mkisofs msmtp \
+          nano ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 python3-pip python3-ply \
+          python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig \
+          texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
+
+    - name: Clone ImmortalWRT
+      run: |
+        git clone https://github.com/immortalwrt/immortalwrt.git
+        cd immortalwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Configure
+      run: |
+        cd immortalwrt
+        cp ../.config .
+        make defconfig
+
+    - name: Compile
+      run: |
+        cd immortalwrt
+        make -j$(nproc)
 
     - name: Create Release
       id: create_release
@@ -25,18 +54,17 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: release-${{ github.run_id }}
+        release_name: Release ${{ github.run_number }} at ${{ github.event.push.timestamp }}
         draft: false
         prerelease: false
 
-    - name: Upload IPK to Release
+    - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, grabs the upload_url output for use here
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./immortalwrt/bin/packages/x86_64/base/*.ipk
-        asset_name: passwall-ipk-files.zip
+        asset_name: openwrt-passwall-ipk-${{ github.run_id }}.zip
         asset_content_type: application/zip
-
